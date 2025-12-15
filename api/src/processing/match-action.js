@@ -34,6 +34,7 @@ export default function({
             requestIP,
             originalRequest: r.originalRequest,
             subtitles: r.subtitles,
+            metadata: r.metadata,
             cover: !disableMetadata ? r.cover : false,
             cropCover: !disableMetadata ? r.cropCover : false,
         },

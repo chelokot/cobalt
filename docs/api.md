@@ -77,6 +77,7 @@ all keys except for `url` are optional. value options are separated by `/`.
 | `filenameStyle`   | `string`  | `classic / pretty / basic / nerdy`                              | `basic`    |
 | `videoQuality`    | `string`  | `max / 4320 / 2160 / 1440 / 1080 / 720 / 480 / 360 / 240 / 144` | `1080`     |
 | `disableMetadata` | `boolean` | title, artist, and other info will not be added to the file     | `false`    |
+| `returnMetadata`  | `boolean` | include service metadata in responses when available            | `false`    |
 | `alwaysProxy`     | `boolean` | always tunnel all files, even when not necessary                | `false`    |
 | `localProcessing` | `string`  | `disabled / preferred / forced`                                 | `disabled` |
 | `subtitleLang`    | `string`  | any valid ISO 639-1 language code                               | *none*     |
@@ -103,12 +104,15 @@ the response will always be a JSON object containing the `status` key, which is 
 - `picker`: there are multiple items to choose from, a picker should be shown.
 - `error`: something went wrong, here's an error code.
 
+when `returnMetadata` is enabled and the service supports it (currently `tiktok`), responses will also include a `metadata` object alongside the fields listed below. for TikTok, this is the raw `itemStruct` object returned by the site, preserving TikTok's own field names and structure.
+
 ### tunnel/redirect response
 | key          | type     | value                                                      |
 |:-------------|:---------|:-----------------------------------------------------------|
 | `status`     | `string` | `tunnel / redirect`                                        |
 | `url`        | `string` | url for the cobalt tunnel, or redirect to an external link |
 | `filename`   | `string` | cobalt-generated filename for the file being downloaded    |
+| `metadata`   | `object` | service metadata, when `returnMetadata` is enabled         |
 
 ### local processing response
 | key          | type       | value                                                         |
