@@ -190,7 +190,8 @@ export default async function({ host, patternMatch, params, authType }) {
                     ...patternMatch,
                     quality: params.videoQuality,
                     alwaysProxy: params.alwaysProxy,
-                    dispatcher
+                    dispatcher,
+                    returnMetadata: params.returnMetadata,
                 })
                 break;
 

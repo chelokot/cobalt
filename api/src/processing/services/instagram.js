@@ -298,9 +298,10 @@ export default function instagram(obj) {
         return { error: "fetch.empty" };
     }
 
-    function extractOldPost(data, id, alwaysProxy) {
+    function extractOldPost(data, id, alwaysProxy, includeMetadata) {
         const shortcodeMedia = data?.gql_data?.shortcode_media || data?.gql_data?.xdt_shortcode_media;
         const sidecar = shortcodeMedia?.edge_sidecar_to_children;
+        const metadata = includeMetadata ? (shortcodeMedia || data?.gql_data || data || null) : undefined;
 
         if (sidecar) {
             const picker = sidecar.edges.filter(e => e.node?.display_url)
@@ -338,28 +339,33 @@ export default function instagram(obj) {
                     }
                 });
 
-            if (picker.length) return { picker }
+            if (picker.length) return metadata === undefined ? { picker } : { picker, metadata }
         }
 
         if (shortcodeMedia?.video_url) {
-            return {
+            const result = {
                 urls: shortcodeMedia.video_url,
                 filename: `instagram_${id}.mp4`,
                 audioFilename: `instagram_${id}_audio`
             }
+            if (metadata !== undefined) result.metadata = metadata;
+            return result;
         }
 
         if (shortcodeMedia?.display_url) {
-            return {
+            const result = {
                 urls: shortcodeMedia.display_url,
                 isPhoto: true,
                 filename: `instagram_${id}.jpg`,
             }
+            if (metadata !== undefined) result.metadata = metadata;
+            return result;
         }
     }
 
-    function extractNewPost(data, id, alwaysProxy) {
+    function extractNewPost(data, id, alwaysProxy, includeMetadata) {
         const carousel = data.carousel_media;
+        const metadata = includeMetadata ? data || null : undefined;
         if (carousel) {
             const picker = carousel.filter(e => e?.image_versions2)
                 .map((e, i) => {
@@ -396,24 +402,28 @@ export default function instagram(obj) {
                     }
                 });
 
-            if (picker.length) return { picker }
+            if (picker.length) return metadata === undefined ? { picker } : { picker, metadata }
         } else if (data.video_versions) {
             const video = data.video_versions.reduce((a, b) => a.width * a.height < b.width * b.height ? b : a)
-            return {
+            const result = {
                 urls: video.url,
                 filename: `instagram_${id}.mp4`,
                 audioFilename: `instagram_${id}_audio`
             }
+            if (metadata !== undefined) result.metadata = metadata;
+            return result;
         } else if (data.image_versions2?.candidates) {
-            return {
+            const result = {
                 urls: data.image_versions2.candidates[0].url,
                 isPhoto: true,
                 filename: `instagram_${id}.jpg`,
             }
+            if (metadata !== undefined) result.metadata = metadata;
+            return result;
         }
     }
 
-    async function getPost(id, alwaysProxy) {
+    async function getPost(id, alwaysProxy, includeMetadata) {
         const hasData = (data) => data
                                     && data.gql_data !== null
                                     && data?.gql_data?.xdt_shortcode_media !== null;
@@ -450,9 +460,9 @@ export default function instagram(obj) {
         }
 
         if (data?.gql_data) {
-            result = extractOldPost(data, id, alwaysProxy)
+            result = extractOldPost(data, id, alwaysProxy, includeMetadata)
         } else {
-            result = extractNewPost(data, id, alwaysProxy)
+            result = extractNewPost(data, id, alwaysProxy, includeMetadata)
         }
 
         if (result) return result;
@@ -469,7 +479,7 @@ export default function instagram(obj) {
         } catch {}
     }
 
-    async function getStory(username, id) {
+    async function getStory(username, id, includeMetadata) {
         const cookie = getCookie('instagram');
         if (!cookie) return { error: "link.unsupported" };
 
@@ -498,21 +508,26 @@ export default function instagram(obj) {
         const item = media.items.find(m => m.pk === id);
         if (!item) return { error: "fetch.empty" };
 
+        const metadata = includeMetadata ? item || null : undefined;
         if (item.video_versions) {
             const video = item.video_versions.reduce((a, b) => a.width * a.height < b.width * b.height ? b : a)
-            return {
+            const result = {
                 urls: video.url,
                 filename: `instagram_${id}.mp4`,
                 audioFilename: `instagram_${id}_audio`
             }
+            if (metadata !== undefined) result.metadata = metadata;
+            return result;
         }
 
         if (item.image_versions2?.candidates) {
-            return {
+            const result = {
                 urls: item.image_versions2.candidates[0].url,
                 isPhoto: true,
                 filename: `instagram_${id}.jpg`,
             }
+            if (metadata !== undefined) result.metadata = metadata;
+            return result;
         }
 
         return { error: "link.unsupported" };
@@ -534,8 +549,8 @@ export default function instagram(obj) {
         }));
     }
 
-    if (postId) return getPost(postId, alwaysProxy);
-    if (username && storyId) return getStory(username, storyId);
+    if (postId) return getPost(postId, alwaysProxy, obj.returnMetadata);
+    if (username && storyId) return getStory(username, storyId, obj.returnMetadata);
 
     return { error: "fetch.empty" }
 }
