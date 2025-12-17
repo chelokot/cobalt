@@ -150,6 +150,8 @@ export default async function({ host, patternMatch, params, authType }) {
                     postId: patternMatch.postId,
                     shortLink: patternMatch.shortLink,
                     fullAudio: params.tiktokFullAudio,
+                    loadComments: params.tiktokComments,
+                    commentsLimit: params.tiktokCommentsLimit,
                     isAudioOnly,
                     h265: params.allowH265,
                     alwaysProxy: params.alwaysProxy,
@@ -306,6 +308,7 @@ export default async function({ host, patternMatch, params, authType }) {
                 case "fetch.fail":
                 case "fetch.rate":
                 case "fetch.critical":
+                case "fetch.comments":
                 case "link.unsupported":
                 case "content.video.unavailable":
                     context = {

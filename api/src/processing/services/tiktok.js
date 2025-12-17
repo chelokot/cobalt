@@ -7,6 +7,144 @@ import { createStream } from "../../stream/manage.js";
 import { convertLanguageCode } from "../../misc/language-codes.js";
 
 const shortDomain = "https://vt.tiktok.com/";
+const commentListURL = "https://www.tiktok.com/api/comment/list/";
+const commentReplyURL = "https://www.tiktok.com/api/comment/list/reply/";
+const commentRequestDefaults = {
+    aid: "1988",
+    count: "50",
+};
+
+const hasMore = (value) => {
+    if (typeof value === "string") {
+        const normalized = value.toLowerCase();
+        return normalized === "1" || normalized === "true";
+    }
+    return value === true || value === 1;
+};
+
+const pickAvatar = (user) => {
+    const options = [
+        user?.avatar_thumb?.url_list,
+        user?.avatar_medium?.url_list,
+        user?.avatar_larger?.url_list,
+    ];
+
+    for (const list of options) {
+        if (Array.isArray(list) && list.length) {
+            return list[0];
+        }
+    }
+};
+
+const mapComment = (item, postId, parentId) => {
+    if (!item?.cid) return;
+    const user = item.user || {};
+
+    return {
+        id: String(item.cid),
+        postId,
+        parentId: parentId ? String(parentId) : null,
+        text: typeof item.text === "string" ? item.text : "",
+        createTime: typeof item.create_time === "number" ? item.create_time : undefined,
+        likeCount: Number.isFinite(item.digg_count) ? item.digg_count : 0,
+        replyCount: Number.isFinite(item.reply_comment_total) ? item.reply_comment_total : 0,
+        user: {
+            id: user.uid ? String(user.uid) : undefined,
+            username: typeof user.unique_id === "string" ? user.unique_id : "",
+            nickname: typeof user.nickname === "string" ? user.nickname : "",
+            avatar: pickAvatar(user),
+        }
+    };
+};
+
+const buildHeaders = (cookie, referer) => {
+    const headers = {
+        "user-agent": genericUserAgent,
+        referer,
+    };
+    const cookieValue = cookie.toString();
+    if (cookieValue) {
+        headers.cookie = cookieValue;
+    }
+    return headers;
+};
+
+const fetchCommentData = async (url, cookie, referer) => {
+    try {
+        const res = await fetch(url, {
+            headers: buildHeaders(cookie, referer),
+        });
+        updateCookie(cookie, res.headers);
+
+        if (!res.ok) return;
+        return res.json().catch(() => undefined);
+    } catch {
+        return;
+    }
+};
+
+const collectTopLevelComments = async (postId, cookie, referer, limit) => {
+    const query = new URLSearchParams({
+        ...commentRequestDefaults,
+        aweme_id: postId,
+        cursor: "0",
+    });
+    const comments = [];
+    let cursor = "0";
+    let total;
+
+    while (true) {
+        query.set("cursor", cursor);
+        const data = await fetchCommentData(`${commentListURL}?${query.toString()}`, cookie, referer);
+        if (!data || !Array.isArray(data.comments)) return;
+
+        comments.push(
+            ...data.comments
+                .map(item => mapComment(item, postId, null))
+                .filter(Boolean)
+        );
+        if (limit && comments.length >= limit) {
+            break;
+        }
+
+        if (typeof data.total === "number") {
+            total = data.total;
+        } else if (typeof data.total_count === "number") {
+            total = data.total_count;
+        }
+
+        const nextCursor = data.cursor !== undefined
+            ? String(data.cursor)
+            : String(Number(cursor) + data.comments.length);
+
+        if (!hasMore(data.has_more ?? data.hasMore) || nextCursor === cursor) {
+            break;
+        }
+        cursor = nextCursor;
+    }
+
+    return {
+        comments: limit ? comments.slice(0, limit) : comments,
+        total,
+    };
+};
+
+const fetchComments = async (postId, cookie, authorHandle, limit) => {
+    const maxCount = typeof limit === "number" && limit > 0 ? limit : undefined;
+    const refererAuthor = authorHandle || "i";
+    const referer = `https://www.tiktok.com/@${refererAuthor}/video/${postId}`;
+
+    const topLevel = await collectTopLevelComments(postId, cookie, referer, maxCount);
+    if (!topLevel) return;
+
+    const comments = maxCount ? topLevel.comments.slice(0, maxCount) : topLevel.comments;
+
+    return {
+        total: topLevel.total ?? topLevel.comments.length,
+        count: comments.length,
+        comments,
+    };
+};
 
 export default async function(obj) {
     const cookie = new Cookie({});
@@ -32,7 +170,6 @@ export default async function(obj) {
     }
     if (!postId) return { error: "fetch.short_link" };
 
-    // should always be /video/, even for photos
     const res = await fetch(`https://www.tiktok.com/@i/video/${postId}`, {
         headers: {
             "user-agent": genericUserAgent,
@@ -54,7 +191,6 @@ export default async function(obj) {
 
         if (!videoDetail) throw "no video detail found";
 
-        // status_deleted or etc
         if (videoDetail.statusMsg) {
             return { error: "content.post.unavailable"};
         }
@@ -74,9 +210,15 @@ export default async function(obj) {
 
     let video, videoFilename, audioFilename, audio, images,
         filenameBase = `tiktok_${detail.author?.uniqueId}_${postId}`,
-        bestAudio; // will get defaulted to m4a later on in match-action
+        bestAudio;
 
     const metadata = obj.returnMetadata ? detail : undefined;
+
+    let comments;
+    if (obj.loadComments) {
+        comments = await fetchComments(postId, cookie, detail.author?.uniqueId, obj.commentsLimit);
+        if (!comments) return { error: "fetch.comments" };
+    }
 
     images = detail.imagePost?.images;
 
@@ -120,6 +262,7 @@ export default async function(obj) {
             subtitles,
             fileMetadata,
             metadata,
+            comments,
             filename: videoFilename,
             headers: { cookie }
         }
@@ -132,6 +275,7 @@ export default async function(obj) {
             isAudioOnly: true,
             bestAudio,
             metadata,
+            comments,
             headers: { cookie }
         }
     }
@@ -160,6 +304,7 @@ export default async function(obj) {
             isAudioOnly: true,
             bestAudio,
             metadata,
+            comments,
             headers: { cookie }
         }
     }
@@ -171,6 +316,7 @@ export default async function(obj) {
             isAudioOnly: true,
             bestAudio,
             metadata,
+            comments,
             headers: { cookie }
         }
     }

@@ -41,6 +41,7 @@ export function createResponse(responseType, responseData) {
                     url: responseData?.url,
                     filename: responseData?.filename,
                     metadata: responseData?.metadata,
+                    comments: responseData?.comments,
                 }
                 break;
 
@@ -49,6 +50,7 @@ export function createResponse(responseType, responseData) {
                     url: createStream(responseData),
                     filename: responseData?.filename,
                     metadata: responseData?.metadata,
+                    comments: responseData?.comments,
                 }
                 break;
 
@@ -75,6 +77,7 @@ export function createResponse(responseType, responseData) {
 
                     isHLS: responseData?.isHLS,
                     metadata: responseData?.metadata,
+                    comments: responseData?.comments,
                 }
 
                 if (!response.audio.format) {
@@ -97,6 +100,7 @@ export function createResponse(responseType, responseData) {
                     audio: responseData?.url,
                     audioFilename: responseData?.filename,
                     metadata: responseData?.metadata,
+                    comments: responseData?.comments,
                 }
                 break;
 
