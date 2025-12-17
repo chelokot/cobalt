@@ -19,35 +19,17 @@ export type CobaltErrorResponse = {
     },
 };
 
-export type TikTokCommentUser = {
-    id?: string,
-    username: string,
-    nickname: string,
-    avatar?: string,
-};
-
-export type TikTokComment = {
-    id: string,
-    postId: string,
-    parentId: string | null,
-    text: string,
-    createTime?: number,
-    likeCount: number,
-    replyCount: number,
-    user: TikTokCommentUser,
-};
-
-export type TikTokComments = {
+export type CommentsPayload = {
     total: number,
     count: number,
-    comments: TikTokComment[],
+    comments: unknown[],
 };
 
 type CobaltPartialURLResponse = {
     url: string,
     filename: string,
     metadata?: Record<string, unknown>,
-    comments?: TikTokComments,
+    comments?: CommentsPayload,
 }
 
 type CobaltPickerResponse = {
@@ -60,7 +42,7 @@ type CobaltPickerResponse = {
     audio?: string,
     audioFilename?: string,
     metadata?: Record<string, unknown>,
-    comments?: TikTokComments,
+    comments?: CommentsPayload,
 };
 
 type CobaltRedirectResponse = {
@@ -114,7 +96,7 @@ export type CobaltLocalProcessingResponse = {
 
     isHLS?: boolean,
     metadata?: Record<string, unknown>,
-    comments?: TikTokComments,
+    comments?: CommentsPayload,
 }
 
 export type CobaltFileUrlType = "redirect" | "tunnel";
@@ -145,8 +127,8 @@ export type CobaltServerInfo = {
 export type CobaltSaveRequestBody =
     { url: string } & Partial<Omit<CobaltSettings['save'], 'savingMethod'>> & {
         returnMetadata?: boolean,
-        tiktokComments?: boolean,
-        tiktokCommentsLimit?: number,
+        includeComments?: boolean,
+        commentsLimit?: number,
     };
 
 export type CobaltSessionResponse = CobaltSession | CobaltErrorResponse;

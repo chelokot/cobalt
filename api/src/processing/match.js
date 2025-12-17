@@ -150,8 +150,8 @@ export default async function({ host, patternMatch, params, authType }) {
                     postId: patternMatch.postId,
                     shortLink: patternMatch.shortLink,
                     fullAudio: params.tiktokFullAudio,
-                    loadComments: params.tiktokComments,
-                    commentsLimit: params.tiktokCommentsLimit,
+                    includeComments: params.includeComments,
+                    commentsLimit: params.commentsLimit,
                     isAudioOnly,
                     h265: params.allowH265,
                     alwaysProxy: params.alwaysProxy,
@@ -192,6 +192,8 @@ export default async function({ host, patternMatch, params, authType }) {
                     ...patternMatch,
                     quality: params.videoQuality,
                     alwaysProxy: params.alwaysProxy,
+                    includeComments: params.includeComments,
+                    commentsLimit: params.commentsLimit,
                     dispatcher
                 })
                 break;
