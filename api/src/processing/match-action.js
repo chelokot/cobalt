@@ -37,6 +37,7 @@ export default function({
             metadata: r.metadata,
             cover: !disableMetadata ? r.cover : false,
             cropCover: !disableMetadata ? r.cropCover : false,
+            comments: r.comments,
         },
         params = {};
 

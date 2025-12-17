@@ -19,9 +19,35 @@ export type CobaltErrorResponse = {
     },
 };
 
+export type TikTokCommentUser = {
+    id?: string,
+    username: string,
+    nickname: string,
+    avatar?: string,
+};
+
+export type TikTokComment = {
+    id: string,
+    postId: string,
+    parentId: string | null,
+    text: string,
+    createTime?: number,
+    likeCount: number,
+    replyCount: number,
+    user: TikTokCommentUser,
+};
+
+export type TikTokComments = {
+    total: number,
+    count: number,
+    comments: TikTokComment[],
+};
+
 type CobaltPartialURLResponse = {
     url: string,
     filename: string,
+    metadata?: Record<string, unknown>,
+    comments?: TikTokComments,
 }
 
 type CobaltPickerResponse = {
@@ -33,6 +59,8 @@ type CobaltPickerResponse = {
     }[];
     audio?: string,
     audioFilename?: string,
+    metadata?: Record<string, unknown>,
+    comments?: TikTokComments,
 };
 
 type CobaltRedirectResponse = {
@@ -85,6 +113,8 @@ export type CobaltLocalProcessingResponse = {
     },
 
     isHLS?: boolean,
+    metadata?: Record<string, unknown>,
+    comments?: TikTokComments,
 }
 
 export type CobaltFileUrlType = "redirect" | "tunnel";
@@ -113,7 +143,11 @@ export type CobaltServerInfo = {
 // this allows for extra properties, which is not ideal,
 // but i couldn't figure out how to make a strict partial :(
 export type CobaltSaveRequestBody =
-    { url: string } & Partial<Omit<CobaltSettings['save'], 'savingMethod'>>;
+    { url: string } & Partial<Omit<CobaltSettings['save'], 'savingMethod'>> & {
+        returnMetadata?: boolean,
+        tiktokComments?: boolean,
+        tiktokCommentsLimit?: number,
+    };
 
 export type CobaltSessionResponse = CobaltSession | CobaltErrorResponse;
 export type CobaltServerInfoResponse = CobaltServerInfo | CobaltErrorResponse;
