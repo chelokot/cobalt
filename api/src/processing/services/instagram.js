@@ -55,6 +55,84 @@ const getObjectFromEntries = (name, data) => {
     return obj && JSON.parse(obj);
 }
 
+const mapComment = (node, postId) => {
+    const commentId = node?.id || node?.pk;
+    if (!commentId) return;
+
+    return node;
+};
+
+const parseCommentsConnection = (data, mediaId) => {
+    const connection = data?.xdt_api__v1__media__media_id__comments__connection;
+    if (!connection?.edges || !Array.isArray(connection.edges)) return;
+
+    const comments = connection.edges
+        .map(edge => mapComment(edge?.node, mediaId))
+        .filter(Boolean);
+
+    const totalCount =
+        typeof connection?.total_count === "number"
+            ? connection.total_count
+            : comments.length;
+
+    return {
+        total: totalCount,
+        count: comments.length,
+        comments,
+        nextCursor: connection?.page_info?.end_cursor || null,
+        hasNext: connection?.page_info?.has_next_page || false,
+    };
+};
+
+const fetchCommentsGql = async (mediaId, limit, gqlParams, dispatcher) => {
+    if (!gqlParams?.headers) return;
+    const first = typeof limit === "number" && limit > 0 ? Math.min(limit, 50) : 50;
+    const variables = {
+        media_id: String(mediaId),
+        first,
+        after: null,
+        sort_order: "popular",
+        __relay_internal__pv__PolarisIsLoggedInrelayprovider: false,
+    };
+
+    const body = new URLSearchParams({
+        ...gqlParams.body,
+        fb_api_caller_class: "RelayModern",
+        fb_api_req_friendly_name: "PolarisPostCommentsPaginationQuery",
+        variables: JSON.stringify(variables),
+        doc_id: "25060748103519434",
+    }).toString();
+
+    try {
+        const res = await fetch("https://www.instagram.com/graphql/query", {
+            method: "POST",
+            headers: {
+                ...embedHeaders,
+                ...gqlParams.headers,
+                "content-type": "application/x-www-form-urlencoded",
+                referer: "https://www.instagram.com/",
+            },
+            body,
+            dispatcher,
+        });
+        if (!res.ok) return;
+
+        const json = await res.json().catch(() => undefined);
+        if (!json?.data) return;
+        const page = parseCommentsConnection(json.data, mediaId);
+        if (!page) return;
+        const comments = page.comments;
+        if (!comments.length) return;
+        return {
+            total: page.total,
+            count: comments.length,
+            comments,
+        };
+    } catch {
+        return;
+    }
+};
+
 export default function instagram(obj) {
     const dispatcher = obj.dispatcher;
 
@@ -417,7 +495,7 @@ export default function instagram(obj) {
         const hasData = (data) => data
                                     && data.gql_data !== null
                                     && data?.gql_data?.xdt_shortcode_media !== null;
-        let data, result;
+        let data, result, comments;
         try {
             const cookie = getCookie('instagram');
 
@@ -449,13 +527,26 @@ export default function instagram(obj) {
             return getErrorContext(id);
         }
 
+        if (obj.includeComments) {
+            let mediaId = data?.gql_data?.shortcode_media?.id || data?.gql_data?.xdt_shortcode_media?.id;
+            if (!mediaId) {
+                mediaId = await getMediaId(id);
+            }
+            if (mediaId) {
+                try {
+                    const gqlParams = await getGQLParams(id, getCookie('instagram'));
+                    comments = await fetchCommentsGql(mediaId, obj.commentsLimit, gqlParams, dispatcher);
+                } catch {}
+            }
+        }
+
         if (data?.gql_data) {
             result = extractOldPost(data, id, alwaysProxy)
         } else {
             result = extractNewPost(data, id, alwaysProxy)
         }
 
-        if (result) return result;
+        if (result) return { ...result, comments };
         return { error: "fetch.empty" }
     }
 

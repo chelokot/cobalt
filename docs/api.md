@@ -91,8 +91,8 @@ all keys except for `url` are optional. value options are separated by `/`.
 | `convertGif`            | `boolean` | convert twitter gifs to the actual GIF format     | `true`  |
 | `allowH265`             | `boolean` | allow H265/HEVC videos from tiktok/xiaohongshu    | `false` |
 | `tiktokFullAudio`       | `boolean` | download the original sound used in a video       | `false` |
-| `tiktokComments`        | `boolean` | include comments for tiktok posts when available  | `false` |
-| `tiktokCommentsLimit`   | `number`  | maximum number of tiktok comments to fetch        | *none*  |
+| `includeComments`       | `boolean` | include comments for tiktok/instagram when available | `false` |
+| `commentsLimit`         | `number`  | best-effort limit for comments (tiktok stops when reached; instagram requests up to this in the first page) | *none*  |
 | `youtubeBetterAudio`    | `boolean` | prefer higher quality youtube audio if possible   | `false` |
 | `youtubeHLS`            | `boolean` | use HLS formats when downloading from youtube     | `false` |
 
@@ -106,7 +106,7 @@ the response will always be a JSON object containing the `status` key, which is 
 - `picker`: there are multiple items to choose from, a picker should be shown.
 - `error`: something went wrong, here's an error code.
 
-when `returnMetadata` is enabled and the service supports it (currently `tiktok`), responses will also include a `metadata` object alongside the fields listed below. for TikTok, this is the raw `itemStruct` object returned by the site, preserving TikTok's own field names and structure. when `tiktokComments` is enabled for TikTok links, responses also include a `comments` object with normalized comment data.
+when `returnMetadata` is enabled and the service supports it (currently `tiktok`), responses will also include a `metadata` object alongside the fields listed below. for TikTok, this is the raw `itemStruct` object returned by the site, preserving TikTok's own field names and structure. when `includeComments` is enabled for tiktok/instagram links, responses also include a `comments` object with the raw comment payload returned by the service.
 
 ### tunnel/redirect response
 | key          | type     | value                                                      |
@@ -115,7 +115,7 @@ when `returnMetadata` is enabled and the service supports it (currently `tiktok`
 | `url`        | `string` | url for the cobalt tunnel, or redirect to an external link |
 | `filename`   | `string` | cobalt-generated filename for the file being downloaded    |
 | `metadata`   | `object` | service metadata, when `returnMetadata` is enabled         |
-| `comments`   | `object` | comment data for tiktok when `tiktokComments` is enabled   |
+| `comments`   | `object` | comment data for tiktok/instagram when `includeComments` is enabled |
 
 ### local processing response
 | key          | type       | value                                                         |
@@ -127,7 +127,7 @@ when `returnMetadata` is enabled and the service supports it (currently `tiktok`
 | `output`     | `object`   | details about the output file ([see below](#output-object))   |
 | `audio`      | `object`   | audio-specific details (optional, [see below](#audio-object)) |
 | `isHLS`      | `boolean`  | whether the output is in HLS format (optional)                |
-| `comments`   | `object`   | comment data for tiktok when `tiktokComments` is enabled      |
+| `comments`   | `object`   | comment data for tiktok/instagram when `includeComments` is enabled |
 
 #### output object
 | key         | type      | value                                                                             |
@@ -169,7 +169,7 @@ all keys in this table are optional.
 | `audio`         | `string` | returned when an image slideshow (such as on tiktok) has a general background audio (optional) |
 | `audioFilename` | `string` | cobalt-generated filename, returned if `audio` exists (optional)                               |
 | `picker`        | `array`  | array of objects containing the individual media                                               |
-| `comments`      | `object` | comment data for tiktok when `tiktokComments` is enabled                                       |
+| `comments`      | `object` | comment data for tiktok/instagram when `includeComments` is enabled                               |
 
 #### picker object
 | key          | type      | value                     |
@@ -185,27 +185,9 @@ all keys in this table are optional.
 | `count`    | `number` | number of comments returned in `comments`                        |
 | `comments` | `array`  | list of top-level comments                                       |
 
-`count` and `comments` respect the `tiktokCommentsLimit` cap when provided, while `total` remains what tiktok reports. Replies are not fetched; `replyCount` reflects TikTok’s reported reply tally for a comment.
+`count` respects `commentsLimit` as a best-effort stop (no pagination for instagram; tiktok stops when the limit is reached). `total` is the service-reported count. Each entry in `comments` is the raw comment object returned by the service. Replies are not fetched.
 
-#### comment object
-| key          | type     | description                                                       |
-|:-------------|:---------|:------------------------------------------------------------------|
-| `id`         | `string` | comment id                                                        |
-| `postId`     | `string` | id of the tiktok post                                             |
-| `parentId`   | `string/null` | always `null` (replies are not fetched)                           |
-| `text`       | `string` | comment text                                                      |
-| `createTime` | `number` | unix timestamp in seconds when the comment was created (optional) |
-| `likeCount`  | `number` | number of likes                                                   |
-| `replyCount` | `number` | number of direct replies to this comment (not fetched)             |
-| `user`       | `object` | info about the commenter (below)                                  |
-
-#### comment.user object
-| key        | type     | description                  |
-|:-----------|:---------|:-----------------------------|
-| `id`       | `string` | tiktok user id (optional)    |
-| `username` | `string` | tiktok username              |
-| `nickname` | `string` | display name                 |
-| `avatar`   | `string` | avatar url (first available) |
+comments array contents are raw, service-specific objects.
 
 ### error response
 | key          | type     | value                         |

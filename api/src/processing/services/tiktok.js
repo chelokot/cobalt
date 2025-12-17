@@ -38,23 +38,7 @@ const pickAvatar = (user) => {
 
 const mapComment = (item, postId, parentId) => {
     if (!item?.cid) return;
-    const user = item.user || {};
-
-    return {
-        id: String(item.cid),
-        postId,
-        parentId: parentId ? String(parentId) : null,
-        text: typeof item.text === "string" ? item.text : "",
-        createTime: typeof item.create_time === "number" ? item.create_time : undefined,
-        likeCount: Number.isFinite(item.digg_count) ? item.digg_count : 0,
-        replyCount: Number.isFinite(item.reply_comment_total) ? item.reply_comment_total : 0,
-        user: {
-            id: user.uid ? String(user.uid) : undefined,
-            username: typeof user.unique_id === "string" ? user.unique_id : "",
-            nickname: typeof user.nickname === "string" ? user.nickname : "",
-            avatar: pickAvatar(user),
-        }
-    };
+    return item;
 };
 
 const buildHeaders = (cookie, referer) => {
@@ -124,7 +108,7 @@ const collectTopLevelComments = async (postId, cookie, referer, limit) => {
     }
 
     return {
-        comments: limit ? comments.slice(0, limit) : comments,
+        comments,
         total,
     };
 };
@@ -137,12 +121,10 @@ const fetchComments = async (postId, cookie, authorHandle, limit) => {
     const topLevel = await collectTopLevelComments(postId, cookie, referer, maxCount);
     if (!topLevel) return;
 
-    const comments = maxCount ? topLevel.comments.slice(0, maxCount) : topLevel.comments;
-
     return {
         total: topLevel.total ?? topLevel.comments.length,
-        count: comments.length,
-        comments,
+        count: topLevel.comments.length,
+        comments: topLevel.comments,
     };
 };
 
@@ -215,7 +197,7 @@ export default async function(obj) {
     const metadata = obj.returnMetadata ? detail : undefined;
 
     let comments;
-    if (obj.loadComments) {
+    if (obj.includeComments) {
         comments = await fetchComments(postId, cookie, detail.author?.uniqueId, obj.commentsLimit);
         if (!comments) return { error: "fetch.comments" };
     }
